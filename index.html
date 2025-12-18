@@ -1,75 +1,215 @@
-<!DOCTYPE html>
-<html lang="en" class=""><head><script>window.livecodes = window.livecodes || {};</script><title>Blank Project</title><meta name="title" content="Blank Project"><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"><style id="__livecodes_styles__"></style><script src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js" async=""></script><script type="importmap">{
-  "imports": {}
-}</script></head><body>
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GTAG WASD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #87ceeb; /* blue sky fallback */
+      font-family: Arial, sans-serif;
+    }#overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  z-index: 10;
+  cursor: pointer;
+}
 
+#overlay.hidden {
+  display: none;
+}
 
-    <meta charset="UTF-8">
-    <title>GTWASD - Launch Edition</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial Black', sans-serif; color: #fff; }
-        #overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; justify-content: center;
-            align-items: center; background: radial-gradient(circle, #222 0%, #000 100%);
-            z-index: 100; transition: 0.5s;
-        }
-        .box { background: #111; padding: 40px; border: 4px solid #0f0; border-radius: 20px; text-align: center; }
-        #launchBtn {
-            display: none; background: #0f0; color: #000; border: none; 
-            padding: 20px 50px; font-size: 24px; font-weight: bold; 
-            cursor: pointer; margin-top: 20px; border-radius: 10px;
-            box-shadow: 0 0 20px #0f0;
-        }
-        #launchBtn:hover { transform: scale(1.1); background: #00ff66; }
-        #status { margin-top: 15px; font-family: monospace; color: #0f0; font-size: 14px; }
-        input[type="file"] { color: #888; margin-bottom: 10px; }
-    </style>
+#overlay div {
+  text-align: center;
+}
 
-
-
-    <div id="overlay">
-        <div class="box">
-            <h1 style="color:#0f0; margin-top:0;">GTWASD</h1>
-            <p>UPLOAD MAP TO ACTIVATE</p>
-            <input type="file" id="mapInput" accept=".gtlf">
-            <br>
-            <button id="launchBtn">LAUNCH GAME</button>
-            <div id="status">Waiting for gorilla_tag_map.gtlf...</div>
-        </div>
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <div>
+      <h1>GTAG WASD</h1>
+      <p>Click to play</p>
+      <p>WASD to move • Space to jump • Mouse to look</p>
+      <p>ESC to release mouse</p>
     </div>
+  </div>  <!-- Three.js CDN -->  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/PointerLockControls.js"></script>  <script>
+    // =============================
+    // BASIC SETUP
+    // =============================
 
-    <script type="module">
-        import * as THREE from 'https://unpkg.com/three@0.157.0/build/three.module.js';
-        import { GLTFLoader } from 'https://unpkg.com/three@0.157.0/examples/jsm/loaders/GLTFLoader.js';
-        import { PointerLockControls } from 'https://unpkg.com/three@0.157.0/examples/jsm/controls/PointerLockControls.js';
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb); // Blue sky
 
-        // 1. ENGINE SETUP
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
-        camera.position.set(0, 10, 50);
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        document.body.appendChild(renderer.domElement);
-        scene.add(new THREE.AmbientLight(0xffffff, 1.8));
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
 
-        const controls = new PointerLockControls(camera, document.body);
-        const mapInput = document.getElementById('mapInput');
-        const launchBtn = document.getElementById('launchBtn');
-        const status = document.getElementById('status');
-        const overlay = document.getElementById('overlay');
+    // =============================
+    // LIGHTING
+    // =============================
 
-        let zipData = null;
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
 
-        // 2. DETECTION
-        mapInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) {
-                zipData = e.target.files[0];
-                status.innerText = "FILE DETECTED: Ready to load.";
-                launchBtn.style.display = "inline-block";
-                mapInput.style.display = "</script><script></script></body></html>
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(100, 200, 100);
+    scene.add(directionalLight);
+
+    // =============================
+    // CONTROLS (Pointer Lock)
+    // =============================
+
+    const controls = new THREE.PointerLockControls(camera, document.body);
+    scene.add(controls.getObject());
+
+    const overlay = document.getElementById('overlay');
+
+    overlay.addEventListener('click', () => {
+      controls.lock();
+    });
+
+    controls.addEventListener('lock', () => {
+      overlay.classList.add('hidden');
+    });
+
+    controls.addEventListener('unlock', () => {
+      overlay.classList.remove('hidden');
+    });
+
+    // =============================
+    // PLAYER SETTINGS
+    // =============================
+
+    const playerHeight = 1.0; // Gorilla-height (half human)
+    const moveSpeed = 6.0;    // Normal walking speed
+    const jumpForce = 6.5;
+    const gravity = 20.0;
+
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    let canJump = false;
+
+    controls.getObject().position.y = playerHeight;
+
+    // =============================
+    // INPUT
+    // =============================
+
+    const keys = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false
+    };
+
+    document.addEventListener('keydown', (event) => {
+      switch (event.code) {
+        case 'KeyW': keys.forward = true; break;
+        case 'KeyS': keys.backward = true; break;
+        case 'KeyA': keys.left = true; break;
+        case 'KeyD': keys.right = true; break;
+        case 'Space':
+          if (canJump) {
+            velocity.y = jumpForce;
+            canJump = false;
+          }
+          break;
+      }
+    });
+
+    document.addEventListener('keyup', (event) => {
+      switch (event.code) {
+        case 'KeyW': keys.forward = false; break;
+        case 'KeyS': keys.backward = false; break;
+        case 'KeyA': keys.left = false; break;
+        case 'KeyD': keys.right = false; break;
+      }
+    });
+
+    // =============================
+    // LOAD MAP (GLTF)
+    // =============================
+
+    const loader = new THREE.GLTFLoader();
+    let world;
+
+    loader.load(
+      'scene.gltf',
+      (gltf) => {
+        world = gltf.scene;
+        scene.add(world);
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading GLTF:', error);
+      }
+    );
+
+    // =============================
+    // RESIZE HANDLING
+    // =============================
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // =============================
+    // MAIN LOOP
+    // =============================
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+
+      velocity.x -= velocity.x * 10.0 * delta;
+      velocity.z -= velocity.z * 10.0 * delta;
+      velocity.y -= gravity * delta;
+
+      direction.z = Number(keys.forward) - Number(keys.backward);
+      direction.x = Number(keys.right) - Number(keys.left);
+      direction.normalize();
+
+      if (keys.forward || keys.backward) velocity.z -= direction.z * moveSpeed * delta;
+      if (keys.left || keys.right) velocity.x -= direction.x * moveSpeed * delta;
+
+      controls.moveRight(-velocity.x * delta);
+      controls.moveForward(-velocity.z * delta);
+      controls.getObject().position.y += velocity.y * delta;
+
+      // Ground collision (simple)
+      if (controls.getObject().position.y < playerHeight) {
+        velocity.y = 0;
+        controls.getObject().position.y = playerHeight;
+        canJump = true;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script></body>
+</html>
