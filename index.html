@@ -96,7 +96,29 @@ const loader = new THREE.GLTFLoader();
 
 loader.load('scene.gltf', gltf => {
   const world = gltf.scene;
+
+  // FORCE VISIBILITY DEBUG MATERIAL
+  world.traverse(obj => {
+    if (obj.isMesh) {
+      obj.material = new THREE.MeshNormalMaterial();
+      worldMeshes.push(obj);
+    }
+  });
+
+  // Auto scale if model is huge or tiny
+  const box = new THREE.Box3().setFromObject(world);
+  const size = box.getSize(new THREE.Vector3()).length();
+  if (size > 500) world.scale.setScalar(0.01);
+  if (size < 1) world.scale.setScalar(10);
+
   scene.add(world);
+
+  // Safe spawn above model center
+  const center = box.getCenter(new THREE.Vector3());
+  spawnPoint.set(center.x, box.max.y + 2, center.z);
+  controls.getObject().position.copy(spawnPoint);
+
+}, undefined, err => console.error('GLTF LOAD ERROR', err));
 
   // Collect meshes for collision
   world.traverse(obj => {
