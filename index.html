@@ -8,7 +8,7 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background: #87ceeb;
+      background: #000;
     }
   </style>
 </head>
@@ -18,7 +18,7 @@
 // =====================================================
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
+scene.background = null; // no sky, transparent/black background
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
 
