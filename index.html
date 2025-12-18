@@ -8,157 +8,197 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background: #87ceeb; /* blue sky fallback */
-      font-family: Arial, sans-serif;
+      background: #87ceeb;
     }
   </style>
 </head>
-<body>  <!-- Three.js CDN -->  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/PointerLockControls.js"></script>  <script>
-    // =============================
-    // BASIC SETUP
-    // =============================
+<body><!-- Three.js --><script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/PointerLockControls.js"></script><script>
+// =====================================================
+// BASIC SETUP
+// =====================================================
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87ceeb); // Blue sky
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
 
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    document.body.appendChild(renderer.domElement);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
 
-    // =============================
-    // LIGHTING
-    // =============================
+// =====================================================
+// LIGHTING
+// =====================================================
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(100, 200, 100);
-    scene.add(directionalLight);
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(300, 400, 200);
+scene.add(sun);
 
-    // =============================
-    // CONTROLS (AUTO POINTER LOCK)
-    // =============================
+// =====================================================
+// CONTROLS (RELIABLE POINTER LOCK)
+// =====================================================
 
-    const controls = new THREE.PointerLockControls(camera, document.body);
-    scene.add(controls.getObject());
+const controls = new THREE.PointerLockControls(camera, renderer.domElement);
+scene.add(controls.getObject());
 
-    // Auto-lock on first click anywhere
-    document.addEventListener('click', () => {
-      if (!controls.isLocked) controls.lock();
-    });
+renderer.domElement.addEventListener('click', () => {
+  if (!controls.isLocked) controls.lock();
+});
 
-    // =============================
-    // PLAYER SETTINGS
-    // =============================
+// =====================================================
+// PLAYER / PHYSICS
+// =====================================================
 
-    const playerHeight = 1.0; // Gorilla-height (half human)
-    const moveSpeed = 6.0;
-    const jumpForce = 6.5;
-    const gravity = 20.0;
+const playerHeight = 1.0;      // Gorilla height
+const moveSpeed = 6.0;
+const jumpForce = 7.0;
+const gravity = 25.0;
 
-    const velocity = new THREE.Vector3();
-    const direction = new THREE.Vector3();
-    let canJump = false;
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+let canJump = false;
 
-    // Start player at world origin, on the ground
-    controls.getObject().position.set(0, playerHeight, 0);
+let spawnPoint = new THREE.Vector3(0, playerHeight, 0);
+let worldMeshes = [];
 
-    // =============================
-    // INPUT
-    // =============================
+// =====================================================
+// INPUT
+// =====================================================
 
-    const keys = { forward: false, backward: false, left: false, right: false };
+const keys = { forward:false, backward:false, left:false, right:false };
 
-    document.addEventListener('keydown', (event) => {
-      switch (event.code) {
-        case 'KeyW': keys.forward = true; break;
-        case 'KeyS': keys.backward = true; break;
-        case 'KeyA': keys.left = true; break;
-        case 'KeyD': keys.right = true; break;
-        case 'Space':
-          if (canJump) {
-            velocity.y = jumpForce;
-            canJump = false;
-          }
-          break;
-      }
-    });
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyW') keys.forward = true;
+  if (e.code === 'KeyS') keys.backward = true;
+  if (e.code === 'KeyA') keys.left = true;
+  if (e.code === 'KeyD') keys.right = true;
+  if (e.code === 'Space' && canJump) {
+    velocity.y = jumpForce;
+    canJump = false;
+  }
+});
 
-    document.addEventListener('keyup', (event) => {
-      switch (event.code) {
-        case 'KeyW': keys.forward = false; break;
-        case 'KeyS': keys.backward = false; break;
-        case 'KeyA': keys.left = false; break;
-        case 'KeyD': keys.right = false; break;
-      }
-    });
+document.addEventListener('keyup', e => {
+  if (e.code === 'KeyW') keys.forward = false;
+  if (e.code === 'KeyS') keys.backward = false;
+  if (e.code === 'KeyA') keys.left = false;
+  if (e.code === 'KeyD') keys.right = false;
+});
 
-    // =============================
-    // LOAD MAP (GLTF)
-    // =============================
+// =====================================================
+// LOAD MAP + SPAWN DETECTION
+// =====================================================
 
-    const loader = new THREE.GLTFLoader();
+const loader = new THREE.GLTFLoader();
 
-    loader.load('scene.gltf', (gltf) => {
-      scene.add(gltf.scene);
-    }, undefined, (error) => {
-      console.error('Error loading GLTF:', error);
-    });
+loader.load('scene.gltf', gltf => {
+  const world = gltf.scene;
+  scene.add(world);
 
-    // =============================
-    // RESIZE HANDLING
-    // =============================
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    // =============================
-    // MAIN LOOP
-    // =============================
-
-    const clock = new THREE.Clock();
-
-    function animate() {
-      requestAnimationFrame(animate);
-
-      const delta = clock.getDelta();
-
-      velocity.x -= velocity.x * 10.0 * delta;
-      velocity.z -= velocity.z * 10.0 * delta;
-      velocity.y -= gravity * delta;
-
-      direction.z = Number(keys.forward) - Number(keys.backward);
-      direction.x = Number(keys.right) - Number(keys.left);
-      direction.normalize();
-
-      if (keys.forward || keys.backward) velocity.z -= direction.z * moveSpeed * delta;
-      if (keys.left || keys.right) velocity.x -= direction.x * moveSpeed * delta;
-
-      controls.moveRight(-velocity.x * delta);
-      controls.moveForward(-velocity.z * delta);
-      controls.getObject().position.y += velocity.y * delta;
-
-      // Simple ground collision
-      if (controls.getObject().position.y < playerHeight) {
-        velocity.y = 0;
-        controls.getObject().position.y = playerHeight;
-        canJump = true;
-      }
-
-      renderer.render(scene, camera);
+  // Collect meshes for collision
+  world.traverse(obj => {
+    if (obj.isMesh) {
+      obj.castShadow = false;
+      obj.receiveShadow = false;
+      worldMeshes.push(obj);
     }
+  });
 
-    animate();
-  </script></body>
+  // Auto-spawn: center of map + raycast downward
+  const box = new THREE.Box3().setFromObject(world);
+  const center = box.getCenter(new THREE.Vector3());
+
+  const downRay = new THREE.Raycaster(
+    new THREE.Vector3(center.x, box.max.y + 10, center.z),
+    new THREE.Vector3(0, -1, 0),
+    0,
+    1000
+  );
+
+  const hits = downRay.intersectObjects(worldMeshes, true);
+  if (hits.length > 0) {
+    spawnPoint.copy(hits[0].point).add(new THREE.Vector3(0, playerHeight, 0));
+  }
+
+  controls.getObject().position.copy(spawnPoint);
+
+}, undefined, err => console.error(err));
+
+// =====================================================
+// COLLISION (RAYCAST GROUND)
+// =====================================================
+
+const groundRay = new THREE.Raycaster();
+
+function checkGround() {
+  groundRay.set(controls.getObject().position, new THREE.Vector3(0, -1, 0));
+  groundRay.far = playerHeight + 0.2;
+
+  const hits = groundRay.intersectObjects(worldMeshes, true);
+
+  if (hits.length > 0) {
+    controls.getObject().position.y = hits[0].point.y + playerHeight;
+    velocity.y = 0;
+    canJump = true;
+  }
+}
+
+// =====================================================
+// FALL RESET
+// =====================================================
+
+function checkFallReset() {
+  if (controls.getObject().position.y < -50) {
+    velocity.set(0, 0, 0);
+    controls.getObject().position.copy(spawnPoint);
+  }
+}
+
+// =====================================================
+// RESIZE
+// =====================================================
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// =====================================================
+// MAIN LOOP
+// =====================================================
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const delta = clock.getDelta();
+
+  velocity.x -= velocity.x * 10 * delta;
+  velocity.z -= velocity.z * 10 * delta;
+  velocity.y -= gravity * delta;
+
+  direction.z = Number(keys.forward) - Number(keys.backward);
+  direction.x = Number(keys.right) - Number(keys.left);
+  direction.normalize();
+
+  if (keys.forward || keys.backward) velocity.z -= direction.z * moveSpeed * delta;
+  if (keys.left || keys.right) velocity.x -= direction.x * moveSpeed * delta;
+
+  controls.moveRight(-velocity.x * delta);
+  controls.moveForward(-velocity.z * delta);
+  controls.getObject().position.y += velocity.y * delta;
+
+  checkGround();
+  checkFallReset();
+
+  renderer.render(scene, camera);
+}
+
+animate();
+</script></body>
 </html>
