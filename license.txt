@@ -1,0 +1,11 @@
+Model Information:
+* title:	Gorilla Tag Map
+* source:	https://sketchfab.com/3d-models/gorilla-tag-map-d57fdb3208d74a4daf129cccd91311b8
+* author:	familycucui4 (https://sketchfab.com/familycucui4)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Gorilla Tag Map" (https://sketchfab.com/3d-models/gorilla-tag-map-d57fdb3208d74a4daf129cccd91311b8) by familycucui4 (https://sketchfab.com/familycucui4) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
