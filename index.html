@@ -1,183 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>GTAG WASD</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas Test 67</title>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: black;
-      color: white;
-      font-family: Arial, sans-serif;
-    }
-    #ui {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 10;
-      font-size: 14px;
-    }
+    body { margin: 0; overflow: hidden; }
   </style>
 </head>
 <body>
 
-<div id="ui">
-  Click to lock 67 mouse<br>
-  WASD to move<br>
-  Space to jump
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/PointerLockControls.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
-
 <script>
-/* =====================
-   SCENE SETUP
-===================== */
-const scene = new THREE.Scene();
+  const canvas = document.createElement('canvas');
+  document.body.appendChild(canvas);
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  5000
-);
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-document.body.appendChild(renderer.domElement);
+  const gl = canvas.getContext('webgl');
 
-/* =====================
-   LIGHTING (STRONG)
-===================== */
-scene.add(new THREE.AmbientLight(0xffffff, 1));
-
-const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-sun.position.set(300, 500, 300);
-scene.add(sun);
-
-/* =====================
-   DEBUG CUBE (MUST SEE)
-===================== */
-const debugCube = new THREE.Mesh(
-  new THREE.BoxGeometry(5, 5, 5),
-  new THREE.MeshStandardMaterial({ color: 0xff0000 })
-);
-debugCube.position.set(0, 5, -10);
-scene.add(debugCube);
-
-/* =====================
-   CONTROLS
-===================== */
-const controls = new THREE.PointerLockControls(camera, document.body);
-scene.add(controls.getObject());
-
-document.addEventListener('click', () => controls.lock());
-
-/* =====================
-   PLAYER PHYSICS
-===================== */
-const velocity = new THREE.Vector3();
-const direction = new THREE.Vector3();
-
-const playerHeight = 1.1;
-const speed = 6;
-const gravity = 25;
-let canJump = false;
-
-/* =====================
-   LOAD GLTF MAP
-===================== */
-const loader = new THREE.GLTFLoader();
-
-loader.load(
-  'scene.gltf',
-  (gltf) => {
-    const map = gltf.scene;
-    scene.add(map);
-
-    // Compute map bounds
-    const box = new THREE.Box3().setFromObject(map);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-
-    // Spawn camera above map
-    controls.getObject().position.set(
-      center.x,
-      box.max.y + playerHeight + 2,
-      center.z
-    );
-
-    camera.lookAt(center);
-
-    console.log('MAP LOADED');
-    console.log('Map size:', size);
-  },
-  undefined,
-  (err) => console.error('GLTF ERROR', err)
-);
-
-/* =====================
-   RESIZE
-===================== */
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-/* =====================
-   LOOP
-===================== */
-const clock = new THREE.Clock();
-
-function animate() {
-  requestAnimationFrame(animate);
-  const delta = clock.getDelta();
-
-  velocity.x -= velocity.x * 10 * delta;
-  velocity.z -= velocity.z * 10 * delta;
-  velocity.y -= gravity * delta;
-
-  direction.set(
-    (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0),
-    0,
-    (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0)
-  ).normalize();
-
-  if (keys.KeyW || keys.KeyS) velocity.z -= direction.z * speed * delta;
-  if (keys.KeyA || keys.KeyD) velocity.x -= direction.x * speed * delta;
-
-  controls.moveRight(-velocity.x * delta);
-  controls.moveForward(-velocity.z * delta);
-  controls.getObject().position.y += velocity.y * delta;
-
-  if (controls.getObject().position.y < playerHeight) {
-    velocity.y = 0;
-    controls.getObject().position.y = playerHeight;
-    canJump = true;
+  if (!gl) {
+    document.body.innerHTML = '<h1 style="color:red">WEBGL FAILED</h1>';
+  } else {
+    gl.clearColor(1, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
   }
-
-  if (keys.Space && canJump) {
-    velocity.y = 8;
-    canJump = false;
-  }
-
-  renderer.render(scene, camera);
-}
-
-/* =====================
-   INPUT
-===================== */
-const keys = {};
-document.addEventListener('keydown', e => keys[e.code] = true);
-document.addEventListener('keyup', e => keys[e.code] = false);
-
-animate();
 </script>
+
 </body>
 </html>
