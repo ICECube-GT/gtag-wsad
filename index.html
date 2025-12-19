@@ -1,39 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Three.js Test 67</title>
-  <style>
-    body { margin: 0; overflow: hidden; background: black; }
-  </style>
-</head>
-<body>
-
 <script type="module">
   import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 
   const scene = new THREE.Scene();
 
-  const camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000
-  );
-  camera.position.z = 3;
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 1.6, 3);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  const geometry = new THREE.BoxGeometry();
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const cube = new THREE.Mesh(geometry, material);
+  // Cube
+  const cube = new THREE.Mesh(
+    new THREE.BoxGeometry(),
+    new THREE.MeshBasicMaterial({ color: 0xff0000 })
+  );
   scene.add(cube);
+
+  // Light (needed later)
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+  // Pointer lock
+  document.body.addEventListener("click", () => {
+    document.body.requestPointerLock();
+  });
+
+  document.addEventListener("pointerlockchange", () => {
+    console.log("Pointer lock:", document.pointerLockElement === document.body);
+  });
+
+  // Simple mouse look
+  let yaw = 0;
+  let pitch = 0;
+
+  document.addEventListener("mousemove", (e) => {
+    if (document.pointerLockElement !== document.body) return;
+
+    yaw -= e.movementX * 0.002;
+    pitch -= e.movementY * 0.002;
+    pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+    camera.rotation.set(pitch, yaw, 0);
+  });
 
   function animate() {
     requestAnimationFrame(animate);
-    cube.rotation.x += 0.01;
     cube.rotation.y += 0.01;
     renderer.render(scene, camera);
   }
@@ -46,6 +57,3 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 </script>
-
-</body>
-</html>
