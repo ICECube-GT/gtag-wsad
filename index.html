@@ -89,9 +89,9 @@
   /* =====================
      POINTER LOCK + LOOK
   ===================== */
-  document.body.addEventListener("click", () => {
-    document.body.requestPointerLock();
-  });
+renderer.domElement.addEventListener("click", () => {
+  renderer.domElement.requestPointerLock();
+});
 
   let yaw = 0;
   let pitch = 0;
