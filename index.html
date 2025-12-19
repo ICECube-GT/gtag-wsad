@@ -1,31 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GTAG WSAD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+    }
+    #ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      z-index: 10;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  Click to lock mouse<br>
+  WASD to move<br>
+  Space to jump
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script>
+/* =======================
+   BASIC SETUP
+======================= */
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  2000
+);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+/* =======================
+   LIGHTING
+======================= */
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.position.set(100, 200, 100);
+scene.add(sun);
+
+/* =======================
+   PLAYER / CAMERA
+======================= */
+
+const player = new THREE.Object3D();
+scene.add(player);
+player.add(camera);
+
+player.position.set(0, 5, 10);
+
+let yaw = 0;
+let pitch = 0;
+
+const sensitivity = 0.002;
+const speed = 6;
+const gravity = 20;
+const jumpForce = 7;
+
+const velocity = new THREE.Vector3();
+let canJump = false;
+
+/* =======================
+   POINTER LOCK (FIXED)
+======================= */
+
+renderer.domElement.addEventListener("click", () => {
+  renderer.domElement.requestPointerLock();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (document.pointerLockElement !== renderer.domElement) return;
+
+  yaw -= e.movementX * sensitivity;
+  pitch -= e.movementY * sensitivity;
+
+  pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+  player.rotation.y = yaw;
+  camera.rotation.x = pitch;
+  camera.rotation.z = 0; // PREVENT ROLL
+});
+
+/* =======================
+   INPUT
+======================= */
+
+const keys = {};
+document.addEventListener("keydown", e => keys[e.code] = true);
+document.addEventListener("keyup", e => keys[e.code] = false);
+
+/* =======================
+   INVISIBLE FLOOR
+======================= */
+
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(1000, 1000),
+  new THREE.MeshBasicMaterial({ visible: false })
+);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+/* =======================
+   LOAD MAP (scene.gltf)
+======================= */
+
+const loader = new THREE.GLTFLoader();
+
 loader.load(
   "scene.gltf",
   (gltf) => {
     const map = gltf.scene;
 
-    // FORCE VISIBILITY
     map.traverse(obj => {
       if (obj.isMesh) {
+        obj.visible = true;
         obj.material.side = THREE.DoubleSide;
-        obj.material.wireframe = true; // TEMP DEBUG
       }
     });
 
-    // FIX SCALE (Sketchfab maps are often huge)
-    map.scale.set(0.01, 0.01, 0.01);
-
-    // FORCE POSITION
+    map.scale.set(1, 1, 1);
     map.position.set(0, 0, 0);
 
     scene.add(map);
-
-    // MOVE PLAYER TO SAFE SPAWN
-    player.position.set(0, 10, 20);
-
-    console.log("MAP LOADED AND FORCED VISIBLE");
+    console.log("MAP LOADED");
   },
   undefined,
-  (err) => {
-    console.error("GLTF LOAD ERROR:", err);
-  }
+  (err) => console.error("GLTF ERROR", err)
 );
+
+/* =======================
+   LOOP
+======================= */
+
+let prevTime = performance.now();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const time = performance.now();
+  const delta = (time - prevTime) / 1000;
+  prevTime = time;
+
+  velocity.x -= velocity.x * 10 * delta;
+  velocity.z -= velocity.z * 10 * delta;
+  velocity.y -= gravity * delta;
+
+  const forward = Number(keys["KeyW"]) - Number(keys["KeyS"]);
+  const side = Number(keys["KeyD"]) - Number(keys["KeyA"]);
+
+  if (forward) velocity.z -= forward * speed * delta;
+  if (side) velocity.x -= side * speed * delta;
+
+  player.translateX(velocity.x * delta);
+  player.translateZ(velocity.z * delta);
+  player.position.y += velocity.y * delta;
+
+  if (player.position.y < 2) {
+    velocity.y = 0;
+    player.position.y = 2;
+    canJump = true;
+  }
+
+  if (keys["Space"] && canJump) {
+    velocity.y = jumpForce;
+    canJump = false;
+  }
+
+  renderer.render(scene, camera);
+}
+
+animate();
+
+/* =======================
+   RESIZE
+======================= */
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+</body>
+</html>
