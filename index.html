@@ -24,7 +24,7 @@
 <body>
 
 <div id="ui">
-  Click to lock 67 mouse<br>
+  Click to lock mouse<br>
   WASD to move<br>
   Space to jump
 </div>
@@ -34,16 +34,16 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-/* =======================
-   BASIC SETUP
-======================= */
+/* =====================
+   SCENE SETUP
+===================== */
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
-  2000
+  5000
 );
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -51,94 +51,88 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-/* =======================
-   LIGHTING (IMPORTANT)
-======================= */
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+/* =====================
+   LIGHTING (STRONG)
+===================== */
+scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-const sun = new THREE.DirectionalLight(0xffffff, 1);
-sun.position.set(100, 200, 100);
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(300, 500, 300);
 scene.add(sun);
 
-/* =======================
+/* =====================
+   DEBUG CUBE (MUST SEE)
+===================== */
+const debugCube = new THREE.Mesh(
+  new THREE.BoxGeometry(5, 5, 5),
+  new THREE.MeshStandardMaterial({ color: 0xff0000 })
+);
+debugCube.position.set(0, 5, -10);
+scene.add(debugCube);
+
+/* =====================
    CONTROLS
-======================= */
+===================== */
 const controls = new THREE.PointerLockControls(camera, document.body);
 scene.add(controls.getObject());
 
-document.addEventListener('click', () => {
-  controls.lock();
-});
+document.addEventListener('click', () => controls.lock());
 
-/* =======================
+/* =====================
    PLAYER PHYSICS
-======================= */
+===================== */
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 
 const playerHeight = 1.1;
 const speed = 6;
-const gravity = 20;
+const gravity = 25;
 let canJump = false;
 
-controls.getObject().position.set(0, playerHeight, 0);
-
-/* =======================
-   INPUT
-======================= */
-const keys = {};
-
-document.addEventListener('keydown', e => keys[e.code] = true);
-document.addEventListener('keyup', e => keys[e.code] = false);
-
-/* =======================
-   FALLBACK GROUND (DEBUG)
-======================= */
-const ground = new THREE.Mesh(
-  new THREE.BoxGeometry(200, 1, 200),
-  new THREE.MeshStandardMaterial({ color: 0x444444 })
-);
-ground.position.y = -0.5;
-scene.add(ground);
-
-/* =======================
+/* =====================
    LOAD GLTF MAP
-======================= */
+===================== */
 const loader = new THREE.GLTFLoader();
 
 loader.load(
   'scene.gltf',
   (gltf) => {
     const map = gltf.scene;
-    map.traverse(obj => {
-      if (obj.isMesh) {
-        obj.castShadow = false;
-        obj.receiveShadow = true;
-      }
-    });
-    map.scale.set(1, 1, 1);
-    map.position.set(0, 0, 0);
     scene.add(map);
-    console.log('GLTF LOADED');
+
+    // Compute map bounds
+    const box = new THREE.Box3().setFromObject(map);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    // Spawn camera above map
+    controls.getObject().position.set(
+      center.x,
+      box.max.y + playerHeight + 2,
+      center.z
+    );
+
+    camera.lookAt(center);
+
+    console.log('MAP LOADED');
+    console.log('Map size:', size);
   },
   undefined,
-  (err) => {
-    console.error('GLTF FAILED', err);
-  }
+  (err) => console.error('GLTF ERROR', err)
 );
 
-/* =======================
+/* =====================
    RESIZE
-======================= */
+===================== */
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-/* =======================
+/* =====================
    LOOP
-======================= */
+===================== */
 const clock = new THREE.Clock();
 
 function animate() {
@@ -169,15 +163,21 @@ function animate() {
   }
 
   if (keys.Space && canJump) {
-    velocity.y = 7;
+    velocity.y = 8;
     canJump = false;
   }
 
   renderer.render(scene, camera);
 }
 
+/* =====================
+   INPUT
+===================== */
+const keys = {};
+document.addEventListener('keydown', e => keys[e.code] = true);
+document.addEventListener('keyup', e => keys[e.code] = false);
+
 animate();
 </script>
-
 </body>
 </html>
