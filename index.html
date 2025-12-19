@@ -131,28 +131,37 @@ scene.add(floor);
 ======================= */
 
 const loader = new THREE.GLTFLoader();
-
 loader.load(
   "scene.gltf",
   (gltf) => {
     const map = gltf.scene;
 
+    // FORCE VISIBILITY
     map.traverse(obj => {
       if (obj.isMesh) {
-        obj.visible = true;
         obj.material.side = THREE.DoubleSide;
+        obj.material.wireframe = true; // TEMP DEBUG
       }
     });
 
-    map.scale.set(1, 1, 1);
+    // FIX SCALE (Sketchfab maps are often huge)
+    map.scale.set(0.01, 0.01, 0.01);
+
+    // FORCE POSITION
     map.position.set(0, 0, 0);
 
     scene.add(map);
-    console.log("MAP LOADED");
+
+    // MOVE PLAYER TO SAFE SPAWN
+    player.position.set(0, 10, 20);
+
+    console.log("MAP LOADED AND FORCED VISIBLE");
   },
   undefined,
-  (err) => console.error("GLTF ERROR", err)
-);
+  (err) => {
+    console.error("GLTF LOAD ERROR:", err);
+  }
+););
 
 /* =======================
    LOOP
