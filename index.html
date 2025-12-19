@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>GTAG WSAD – Camera Base</title>
+  <title>GTAG WSAD – Map Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     html, body {
@@ -29,6 +29,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
 /* ========= SCENE ========= */
@@ -39,10 +40,10 @@ const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
-  1000
+  5000
 );
 
-camera.position.set(0, 5, 10);
+camera.position.set(0, 10, 30);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -50,15 +51,15 @@ document.body.appendChild(renderer.domElement);
 
 /* ========= LIGHT ========= */
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-const sun = new THREE.DirectionalLight(0xffffff, 0.7);
-sun.position.set(10, 20, 10);
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.position.set(50, 100, 50);
 scene.add(sun);
 
 /* ========= HELPERS ========= */
 
-scene.add(new THREE.GridHelper(50, 50));
-scene.add(new THREE.AxesHelper(10));
+scene.add(new THREE.GridHelper(200, 50));
+scene.add(new THREE.AxesHelper(20));
 
 const cube = new THREE.Mesh(
   new THREE.BoxGeometry(2, 2, 2),
@@ -86,6 +87,38 @@ document.addEventListener("mousemove", e => {
 
   camera.rotation.set(pitch, yaw, 0);
 });
+
+/* ========= GLTF LOADER ========= */
+
+const loader = new THREE.GLTFLoader();
+
+loader.load(
+  "scene.gltf",
+  (gltf) => {
+    const map = gltf.scene;
+
+    map.traverse(obj => {
+      if (obj.isMesh) {
+        obj.material.side = THREE.DoubleSide;
+      }
+    });
+
+    // Try a sane scale for Sketchfab exports
+    map.scale.set(0.05, 0.05, 0.05);
+    map.position.set(0, 0, 0);
+
+    scene.add(map);
+    console.log("MAP LOADED");
+  },
+  (xhr) => {
+    if (xhr.total) {
+      console.log(`Loading: ${(xhr.loaded / xhr.total * 100).toFixed(1)}%`);
+    }
+  },
+  (err) => {
+    console.error("GLTF ERROR:", err);
+  }
+);
 
 /* ========= LOOP ========= */
 
