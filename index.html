@@ -2,214 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>GTAG WSAD DEBUG</title>
+  <title>Three.js Hard Render Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      overflow: hidden;
+      width: 100%;
+      height: 100%;
       background: black;
-    }
-    #ui {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-family: monospace;
-      font-size: 14px;
-      z-index: 10;
     }
   </style>
 </head>
 <body>
 
-<div id="ui">
-  Click to lock mouse<br>
-  WASD move · Space jump
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-/* =====================
-   BASIC SETUP
-===================== */
+console.log("SCRIPT STARTED");
 
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  5000
+const camera = new THREE.OrthographicCamera(
+  -1, 1, 1, -1, 0, 1
 );
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-/* =====================
-   LIGHTING
-===================== */
+const geometry = new THREE.BufferGeometry();
+const vertices = new Float32Array([
+  -1, -1, 0,
+   3, -1, 0,
+  -1,  3, 0
+]);
+geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
 
-scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+const triangle = new THREE.Mesh(geometry, material);
+scene.add(triangle);
 
-const sun = new THREE.DirectionalLight(0xffffff, 1.0);
-sun.position.set(100, 200, 100);
-scene.add(sun);
+renderer.render(scene, camera);
 
-/* =====================
-   DEBUG HELPERS
-===================== */
-
-scene.add(new THREE.AxesHelper(50));
-scene.add(new THREE.GridHelper(200, 20));
-
-const testCube = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 2, 2),
-  new THREE.MeshBasicMaterial({ color: 0xff0000 })
-);
-testCube.position.set(0, 2, 0);
-scene.add(testCube);
-
-/* =====================
-   PLAYER / CAMERA
-===================== */
-
-const player = new THREE.Object3D();
-scene.add(player);
-player.add(camera);
-
-player.position.set(0, 10, 30);
-
-let yaw = 0;
-let pitch = 0;
-const sensitivity = 0.002;
-
-renderer.domElement.addEventListener("click", () => {
-  renderer.domElement.requestPointerLock();
-});
-
-document.addEventListener("mousemove", (e) => {
-  if (document.pointerLockElement !== renderer.domElement) return;
-
-  yaw -= e.movementX * sensitivity;
-  pitch -= e.movementY * sensitivity;
-
-  pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
-
-  player.rotation.y = yaw;
-  camera.rotation.x = pitch;
-  camera.rotation.z = 0;
-});
-
-/* =====================
-   MOVEMENT
-===================== */
-
-const keys = {};
-document.addEventListener("keydown", e => keys[e.code] = true);
-document.addEventListener("keyup", e => keys[e.code] = false);
-
-const velocity = new THREE.Vector3();
-const speed = 10;
-const gravity = 30;
-let canJump = false;
-
-/* =====================
-   INVISIBLE FLOOR
-===================== */
-
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(2000, 2000),
-  new THREE.MeshBasicMaterial({ visible: false })
-);
-floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
-
-/* =====================
-   LOAD GLTF MAP
-===================== */
-
-const loader = new THREE.GLTFLoader();
-
-loader.load(
-  "scene.gltf",
-  (gltf) => {
-    const map = gltf.scene;
-
-    map.traverse(obj => {
-      if (obj.isMesh) {
-        obj.material.side = THREE.DoubleSide;
-        obj.material.wireframe = true; // DEBUG
-      }
-    });
-
-    // TRY MULTIPLE SCALES
-    map.scale.set(0.01, 0.01, 0.01);
-    map.position.set(0, 0, 0);
-
-    scene.add(map);
-
-    console.log("GLTF LOADED");
-  },
-  (xhr) => {
-    console.log("GLTF loading:", (xhr.loaded / xhr.total * 100).toFixed(0) + "%");
-  },
-  (err) => {
-    console.error("GLTF ERROR:", err);
-  }
-);
-
-/* =====================
-   LOOP
-===================== */
-
-let last = performance.now();
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  const now = performance.now();
-  const delta = (now - last) / 1000;
-  last = now;
-
-  velocity.y -= gravity * delta;
-
-  const forward = Number(keys["KeyW"]) - Number(keys["KeyS"]);
-  const side = Number(keys["KeyD"]) - Number(keys["KeyA"]);
-
-  if (forward) player.translateZ(-forward * speed * delta);
-  if (side) player.translateX(side * speed * delta);
-
-  player.position.y += velocity.y * delta;
-
-  if (player.position.y < 2) {
-    velocity.y = 0;
-    player.position.y = 2;
-    canJump = true;
-  }
-
-  if (keys["Space"] && canJump) {
-    velocity.y = 10;
-    canJump = false;
-  }
-
-  testCube.rotation.y += delta;
-
-  renderer.render(scene, camera);
-}
-
-animate();
-
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+console.log("RENDER CALLED");
 </script>
 
 </body>
