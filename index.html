@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>GTAG WSAD – GLTF DIAG</title>
+  <title>GTAG WSAD – Final Load Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     html, body {
@@ -25,7 +25,7 @@
 </head>
 <body>
 
-<div id="ui">Starting…</div>
+<div id="ui">Booting…</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -57,7 +57,7 @@ const sun = new THREE.DirectionalLight(0xffffff, 0.8);
 sun.position.set(50, 100, 50);
 scene.add(sun);
 
-/* ========= BASE OBJECTS (ALWAYS VISIBLE) ========= */
+/* ========= ALWAYS-VISIBLE OBJECTS ========= */
 
 scene.add(new THREE.GridHelper(200, 50));
 scene.add(new THREE.AxesHelper(20));
@@ -71,14 +71,17 @@ scene.add(cube);
 
 /* ========= GLTF LOAD ========= */
 
-ui.textContent += "\nRequesting: scene.gltf";
+const basePath = window.location.pathname.replace(/\/[^/]*$/, "/");
+const gltfURL = basePath + "scene.gltf?cacheBust=" + Date.now();
+
+ui.textContent += "\nRequesting:\n" + gltfURL;
 
 const loader = new THREE.GLTFLoader();
 
 loader.load(
-  "scene.gltf",
+  gltfURL,
   (gltf) => {
-    ui.textContent += "\nGLTF loaded successfully";
+    ui.textContent += "\nGLTF LOADED ✅";
 
     const map = gltf.scene;
 
@@ -99,8 +102,7 @@ loader.load(
     }
   },
   (err) => {
-    ui.textContent += "\nGLTF ERROR:";
-    ui.textContent += "\n" + err.message;
+    ui.textContent += "\nGLTF ERROR ❌\n" + err.message;
     console.error(err);
   }
 );
