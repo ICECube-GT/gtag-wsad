@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>GTAG WSAD – Map Test</title>
+  <title>GTAG WSAD – GLTF DIAG</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     html, body {
@@ -17,21 +17,22 @@
       left: 10px;
       color: white;
       font-family: monospace;
+      font-size: 13px;
       z-index: 10;
+      white-space: pre-line;
     }
   </style>
 </head>
 <body>
 
-<div id="ui">
-  Click to lock mouse<br>
-  WASD move · Space jump
-</div>
+<div id="ui">Starting…</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
+const ui = document.getElementById("ui");
+
 /* ========= SCENE ========= */
 
 const scene = new THREE.Scene();
@@ -42,8 +43,8 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   5000
 );
-
 camera.position.set(0, 10, 30);
+camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -56,7 +57,7 @@ const sun = new THREE.DirectionalLight(0xffffff, 0.8);
 sun.position.set(50, 100, 50);
 scene.add(sun);
 
-/* ========= HELPERS ========= */
+/* ========= BASE OBJECTS (ALWAYS VISIBLE) ========= */
 
 scene.add(new THREE.GridHelper(200, 50));
 scene.add(new THREE.AxesHelper(20));
@@ -68,33 +69,17 @@ const cube = new THREE.Mesh(
 cube.position.set(0, 1, 0);
 scene.add(cube);
 
-/* ========= POINTER LOCK ========= */
+/* ========= GLTF LOAD ========= */
 
-let yaw = 0;
-let pitch = 0;
-
-renderer.domElement.addEventListener("click", () => {
-  renderer.domElement.requestPointerLock();
-});
-
-document.addEventListener("mousemove", e => {
-  if (document.pointerLockElement !== renderer.domElement) return;
-
-  yaw -= e.movementX * 0.002;
-  pitch -= e.movementY * 0.002;
-
-  pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
-
-  camera.rotation.set(pitch, yaw, 0);
-});
-
-/* ========= GLTF LOADER ========= */
+ui.textContent += "\nRequesting: scene.gltf";
 
 const loader = new THREE.GLTFLoader();
 
 loader.load(
   "scene.gltf",
   (gltf) => {
+    ui.textContent += "\nGLTF loaded successfully";
+
     const map = gltf.scene;
 
     map.traverse(obj => {
@@ -103,20 +88,20 @@ loader.load(
       }
     });
 
-    // Try a sane scale for Sketchfab exports
     map.scale.set(0.05, 0.05, 0.05);
     map.position.set(0, 0, 0);
 
     scene.add(map);
-    console.log("MAP LOADED");
   },
   (xhr) => {
     if (xhr.total) {
-      console.log(`Loading: ${(xhr.loaded / xhr.total * 100).toFixed(1)}%`);
+      ui.textContent += `\nLoading ${Math.round(xhr.loaded / xhr.total * 100)}%`;
     }
   },
   (err) => {
-    console.error("GLTF ERROR:", err);
+    ui.textContent += "\nGLTF ERROR:";
+    ui.textContent += "\n" + err.message;
+    console.error(err);
   }
 );
 
