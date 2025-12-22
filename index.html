@@ -1,128 +1,245 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>GTAG WSAD – Final Load Test</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: black;
-    }
-    #ui {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-family: monospace;
-      font-size: 13px;
-      z-index: 10;
-      white-space: pre-line;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>GTAG WASD</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: black;
+  font-family: Arial, sans-serif;
+}
+#hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  z-index: 10;
+}
+#crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  margin-top: -3px;
+  background: white;
+  border-radius: 50%;
+  z-index: 10;
+}
+</style>
 </head>
 <body>
 
-<div id="ui">Booting…</div>
+<div id="hud">GTAG WASD – Click to play</div>
+<div id="crosshair"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-const ui = document.getElementById("ui");
-
-/* ========= SCENE ========= */
-
+/* =====================
+   BASIC SETUP
+===================== */
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  5000
-);
-camera.position.set(0, 10, 30);
-camera.lookAt(0, 0, 0);
-
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-/* ========= LIGHT ========= */
-
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-sun.position.set(50, 100, 50);
+/* =====================
+   LIGHTING
+===================== */
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1);
+sun.position.set(100, 200, 100);
 scene.add(sun);
 
-/* ========= ALWAYS-VISIBLE OBJECTS ========= */
+/* =====================
+   PLAYER
+===================== */
+const player = {
+  height: 1.0,
+  radius: 0.35,
+  speed: 6,
+  jump: 6,
+  climbForce: 8,
+  gravity: 20,
+  velocity: new THREE.Vector3(),
+  canJump: false,
+  touching: false
+};
 
-scene.add(new THREE.GridHelper(200, 50));
-scene.add(new THREE.AxesHelper(20));
+camera.position.set(0, player.height, 5);
 
-const cube = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 2, 2),
-  new THREE.MeshStandardMaterial({ color: 0xff0000 })
-);
-cube.position.set(0, 1, 0);
-scene.add(cube);
+/* =====================
+   POINTER LOCK (NO ROLL)
+===================== */
+let yaw = 0, pitch = 0, locked = false;
 
-/* ========= GLTF LOAD ========= */
+document.body.addEventListener("click", () => document.body.requestPointerLock());
+document.addEventListener("pointerlockchange", () => locked = document.pointerLockElement === document.body);
 
-const basePath = window.location.pathname.replace(/\/[^/]*$/, "/");
-const gltfURL = basePath + "scene.gltf?cacheBust=" + Date.now();
+document.addEventListener("mousemove", e => {
+  if (!locked) return;
+  yaw -= e.movementX * 0.002;
+  pitch -= e.movementY * 0.002;
+  pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+  camera.rotation.set(pitch, yaw, 0);
+});
 
-ui.textContent += "\nRequesting:\n" + gltfURL;
+/* =====================
+   INPUT
+===================== */
+const keys = {};
+addEventListener("keydown", e => keys[e.code] = true);
+addEventListener("keyup", e => keys[e.code] = false);
 
-const loader = new THREE.GLTFLoader();
+/* =====================
+   COLLISION SYSTEM
+===================== */
+const colliders = [];
 
-loader.load(
-  gltfURL,
-  (gltf) => {
-    ui.textContent += "\nGLTF LOADED ✅";
+function addCollider(mesh) {
+  mesh.geometry.computeBoundingBox();
+  colliders.push(mesh);
+}
 
-    const map = gltf.scene;
+function resolveCollisions(pos) {
+  player.touching = false;
 
-    map.traverse(obj => {
-      if (obj.isMesh) {
-        obj.material.side = THREE.DoubleSide;
+  for (const obj of colliders) {
+    const box = obj.geometry.boundingBox.clone();
+    box.applyMatrix4(obj.matrixWorld);
+
+    if (
+      pos.x > box.min.x - player.radius &&
+      pos.x < box.max.x + player.radius &&
+      pos.y > box.min.y &&
+      pos.y < box.max.y + player.height &&
+      pos.z > box.min.z - player.radius &&
+      pos.z < box.max.z + player.radius
+    ) {
+      player.touching = true;
+
+      if (!keys.Space) {
+        if (Math.abs(pos.x - box.min.x) < Math.abs(pos.x - box.max.x))
+          pos.x = box.min.x - player.radius;
+        else
+          pos.x = box.max.x + player.radius;
+
+        if (Math.abs(pos.z - box.min.z) < Math.abs(pos.z - box.max.z))
+          pos.z = box.min.z - player.radius;
+        else
+          pos.z = box.max.z + player.radius;
       }
-    });
-
-    map.scale.set(0.05, 0.05, 0.05);
-    map.position.set(0, 0, 0);
-
-    scene.add(map);
-  },
-  (xhr) => {
-    if (xhr.total) {
-      ui.textContent += `\nLoading ${Math.round(xhr.loaded / xhr.total * 100)}%`;
     }
-  },
-  (err) => {
-    ui.textContent += "\nGLTF ERROR ❌\n" + err.message;
-    console.error(err);
   }
-);
+}
 
-/* ========= LOOP ========= */
+/* =====================
+   WORLD CREATION
+===================== */
+function box(x,y,z,w,h,d,color) {
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshStandardMaterial({ color })
+  );
+  m.position.set(x,y,z);
+  scene.add(m);
+  addCollider(m);
+  return m;
+}
+
+// Ground
+box(0,-0.5,0,100,1,100,0x228b22);
+
+// Walls
+box(0,2,-20,40,4,1,0x666666);
+box(-20,2,0,1,4,40,0x666666);
+
+// Platforms
+box(5,1,5,4,1,4,0x8b4513);
+box(-6,2,-4,6,1,6,0x8b4513);
+
+// Trees
+function tree(x,z) {
+  box(x,1,z,0.8,2,0.8,0x8b5a2b);
+  const leaves = new THREE.Mesh(
+    new THREE.SphereGeometry(2,16,16),
+    new THREE.MeshStandardMaterial({ color: 0x0a5f0a })
+  );
+  leaves.position.set(x,3.5,z);
+  scene.add(leaves);
+  addCollider(leaves);
+}
+tree(8,8);
+tree(-10,6);
+tree(3,-12);
+
+/* =====================
+   GAME LOOP
+===================== */
+const clock = new THREE.Clock();
 
 function animate() {
   requestAnimationFrame(animate);
-  cube.rotation.y += 0.01;
+  const dt = clock.getDelta();
+
+  player.velocity.y -= player.gravity * dt;
+
+  const dir = new THREE.Vector3();
+  if (keys.KeyW) dir.z -= 1;
+  if (keys.KeyS) dir.z += 1;
+  if (keys.KeyA) dir.x -= 1;
+  if (keys.KeyD) dir.x += 1;
+  dir.normalize().applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
+
+  player.velocity.x = dir.x * player.speed;
+  player.velocity.z = dir.z * player.speed;
+
+  if (keys.Space && player.canJump) {
+    player.velocity.y = player.jump;
+    player.canJump = false;
+  }
+
+  camera.position.addScaledVector(player.velocity, dt);
+
+  resolveCollisions(camera.position);
+
+  // Climbing
+  if (player.touching && keys.Space) {
+    player.velocity.y = player.climbForce;
+  }
+
+  // Ground
+  if (camera.position.y < player.height) {
+    camera.position.y = player.height;
+    player.velocity.y = 0;
+    player.canJump = true;
+  }
+
+  // Fall reset
+  if (camera.position.y < -20) {
+    camera.position.set(0, player.height, 5);
+    player.velocity.set(0,0,0);
+  }
+
   renderer.render(scene, camera);
 }
 
 animate();
 
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(innerWidth, innerHeight);
 });
 </script>
-
 </body>
 </html>
